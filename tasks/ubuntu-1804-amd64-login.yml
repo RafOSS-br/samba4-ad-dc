@@ -5,7 +5,7 @@
 # Version: 1.0
 # File: tasks/ubt-1804-amd64-login.yml
 #
-# Description: Creating a primairy Active Directory Domain Controller.
+# Description: Creating a primary Active Directory Domain Controller.
 
 - name: "Edit Fstab"
   replace:
