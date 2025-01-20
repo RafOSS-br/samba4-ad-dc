@@ -77,6 +77,7 @@
     -U "{{ smb_admin_user }}%{{ smb_admin_password }}"
     --dns-backend=SAMBA_INTERNAL
     --option="idmap_ldb:use rfc2307 = yes"
+    --option="netbios name={{ smb_netbios_name | default(inventory_hostname_short.upper()) }}"
   when:
     - smb_dc_result.rc != 0
   notify: restart_samba

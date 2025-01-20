@@ -18,6 +18,9 @@
 #   smb_dns_forwarders : '8.8.8.8 8.8.4.4'                        # Set DNS forwarders.
 #   smb_username       : 'administrator'                          # Set administrator account.
 #   smb_password       : 'Welkom123'                              # Set administrator password.
+#   smb_netbios_name   : 'samba4'                                 # Set netbios name.
+# Variable(s) for member role:
+#   ad_computer_ou_path: 'OU=Computers,DC=lab,DC=local'           # Set computer ou path.
 # Variable(s) for TLS(only for ubuntu 22.04):
 #   tls_cert           : '/etc/ssl/certs/ssl-cert-snakeoil.pem'   # Set certificate path.
 #   tls_key            : '/etc/ssl/private/ssl-cert-snakeoil.key' # Set key path.

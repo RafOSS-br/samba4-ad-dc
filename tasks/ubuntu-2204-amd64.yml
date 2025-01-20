@@ -95,6 +95,7 @@
     --realm={{ smb_realm }}
     --domain={{ smb_workgroup }}
     --adminpass={{ smb_password }}
+    --netbios-name={{ smb_netbios_name | default(inventory_hostname_short.upper()) }}
   when:
     - smb_dc_result.rc != 0
 
