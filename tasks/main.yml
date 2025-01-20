@@ -35,7 +35,7 @@
     - ansible_architecture == "x86_64"
 
 - name: "Role: additional DC, For OS: Ubuntu 22.04LTS, Arch: amd64"
-  import_tasks: ubuntu-2204-amd64-additional.yml
+  import_tasks: ubuntu-2204-amd64-repl.yml
   when:
     - smb_role == "additional"
     - ansible_distribution_version == "22.04"
