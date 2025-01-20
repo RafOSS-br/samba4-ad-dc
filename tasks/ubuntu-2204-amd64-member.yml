@@ -1,0 +1,216 @@
+---
+# title: role-sssd-ad-member
+# Author: Rafael R. M.
+# Version: 1.0
+# File: tasks/ubuntu-2204-amd64-member.yml
+#
+# Description: Join a server as a domain member via SSSD, including public key injection via AD.
+
+
+- name: "Check if role was already executed"
+  stat:
+    path: /etc/ansible/flags/ansible_samba_member_installed
+  register: role_flag
+
+- name: "Stop if role is already installed"
+  fail:
+    msg: "Role is already installed"
+  when:
+    - role_flag.stat.exists
+
+- name: "Verify if host is DC"
+  shell: samba-tool domain info {{ ansible_default_ipv4.address }}
+  register: smb_dc_check
+  changed_when: false
+  failed_when: smb_dc_check.rc != 0
+
+- name: "Install ca-certificates"
+  apt:
+    name: ca-certificates
+    state: present
+    update_cache: yes
+
+- name: "Copy CA certificate to /usr/local/share/ca-certificates"
+  copy:
+    src: "{{ tls_ca_cert }}"
+    dest: /usr/local/share/ca-certificates/{{ tls_ca_cert | basename }}
+    mode: '0644'
+
+- name: "Update ca-certificates"
+  command: update-ca-certificates
+  args:
+    creates: /etc/ssl/certs/{{ tls_ca_cert | basename }}
+
+- name: "Install dependencies for SSSD, realmd, and related tools"
+  apt:
+    name:
+      - realmd
+      - sssd
+      - sssd-tools
+      - adcli
+      - oddjob
+      - oddjob-mkhomedir
+      - libnss-sss
+      - libpam-sss
+      - packagekit
+      - acl
+      - samba-common-bin  # optional for tools like net, testparm
+      - krb5-user
+    update_cache: yes
+    state: present
+
+- name: "Stop and disable Winbind and Samba AD DC if present (we will not use Winbind)"
+  ansible.builtin.systemd_service:
+    enabled: no
+    state: stopped
+    masked: yes
+    name: "{{ item }}"
+  loop:
+    - winbind.service
+    - samba-ad-dc.service
+  ignore_errors: true
+
+- name: "Fix /etc/fstab to support ACL and extended attributes"
+  replace:
+    path: /etc/fstab
+    regexp: 'errors=remount-ro\s+0'
+    replace: 'user_xattr,acl,barrier=1,errors=remount-ro,relatime 0'
+    backup: yes
+
+- name: "Discover domain"
+  command: realm discover "{{ ad_domain }}"
+  register: realm_discovery
+  changed_when: false
+
+- name: "Join the domain (SSSD)"
+  command: realm join --user="{{ domain_admin_user }}" "{{ ad_domain }}" --computer-ou="{{ ad_computer_ou_path | default('') }}"
+  args:
+    stdin: "{{ domain_admin_pass }}"
+  when: realm_discovery.rc == 0
+
+- name: "Enable home creation with oddjobd"
+  ansible.builtin.systemd_service:
+    name: oddjobd
+    enabled: yes
+    state: started
+
+- name: "Configure /etc/sssd/sssd.conf"
+  blockinfile:
+    path: /etc/sssd/sssd.conf
+    create: yes
+    mode: "0600"
+    block: |
+      [sssd]
+      services = nss, pam, ssh
+      config_file_version = 2
+      domains = {{ ad_domain }}
+
+      [domain/{{ ad_domain }}]
+      id_provider = ad
+      auth_provider = ad
+      access_provider = ad
+      chpass_provider = ad
+      ad_domain = {{ ad_domain }}
+      cache_credentials = true
+      override_homedir = /home/%u
+      default_shell = /bin/bash
+      ldap_id_mapping = true
+      # Attribute that contains the SSH key in AD
+      ldap_user_ssh_public_key = sshPublicKey
+      # Will need to extend the AD schema or use a custom attribute
+
+      # Home generation
+      dyndns_update = false
+      fallback_homedir = /home/%u
+
+      [pam]
+      offline_credentials = True
+
+      [nss]
+      homedir_substring = /home
+
+      [ssh]
+      # Allows retrieving the public key via SSSD
+      authorized_keys_command = /usr/bin/sss_ssh_authorizedkeys
+      authorized_keys_command_user = nobody
+  notify: restart_sssd
+
+- name: "Configure sshd_config to use SSSD in AuthorizedKeysCommand"
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?AuthorizedKeysCommand'
+    line: 'AuthorizedKeysCommand /usr/bin/sss_ssh_authorizedkeys'
+  notify:
+    - restart_ssh
+
+- name: "Set user for AuthorizedKeysCommand"
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?AuthorizedKeysCommandUser'
+    line: 'AuthorizedKeysCommandUser nobody'
+  notify:
+    - restart_ssh
+
+- name: "Enable SSH via SSSD"
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?UsePAM'
+    line: 'UsePAM yes'
+  notify:
+    - restart_ssh
+
+- name: "Update PAM for SSSD"
+  command: pam-auth-update --force
+
+- name: "Harden SSH - disable root login"
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^PermitRootLogin'
+    line: 'PermitRootLogin no'
+  notify:
+    - restart_ssh
+
+- name: "Harden SSH - disable password authentication (optional)"
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^PasswordAuthentication'
+    line: 'PasswordAuthentication no'
+  notify:
+    - restart_ssh
+
+- name: "Enable UFW and block by default"
+  ufw:
+    state: enabled
+    policy: deny
+    logging: 'on'
+
+- name: "Allow necessary ports for Samba/AD/SSHD"
+  ufw:
+    rule: allow
+    port:
+      - 22
+      - 53
+      - 88
+      - 135
+      - 137
+      - 138
+      - 139
+      - 389
+      - 445
+      - 464
+      - 636
+      - 1024:1300/tcp
+    proto: tcp
+
+- name: Make flag directory
+  ansible.builtin.file:
+    path: /etc/ansible/flags
+    state: directory
+    mode: 0775
+    recurse: yes
+
+- name: "Create installed flag"
+  file:
+    path: /etc/ansible/flags/ansible_samba_member_installed
+    state: touch
+    mode: '0644'

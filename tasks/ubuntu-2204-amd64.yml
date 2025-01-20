@@ -1,0 +1,203 @@
+---
+# title: role-samba4-primary-ad-dc
+# Author: Rafael R. M.
+# Version: 1.0
+# File: tasks/ubuntu-2204-amd64.yml
+#
+# Description: Creating a primary Active Directory Domain Controller on Ubuntu 22.04
+#              with TLS/LDAP hardening and a validation flag to ensure idempotency.
+
+- name: "Check if role was already executed"
+  stat:
+    path: /etc/ansible/flags/ansible_samba_dc_installed
+  register: role_flag
+
+- name: "Stop if role is already installed"
+  fail:
+    msg: "Role is already installed"
+  when:
+    - role_flag.stat.exists
+
+- name: "Check if OS is already DC"
+  shell: "samba-tool domain info {{ ansible_default_ipv4.address }}"
+  register: smb_dc_result
+  changed_when: false
+  failed_when: false
+
+- name: "Preseed Kerberos version 5: krb5-config/default_realm"
+  raw: "echo krb5-config krb5-config/default_realm string {{ smb_realm }} | sudo debconf-set-selections"
+  when:
+    - smb_dc_result.rc != 0
+
+- name: "Preseed Kerberos version 5: krb5-config/add_servers_realm"
+  raw: "echo krb5-config krb5-config/add_servers_realm string {{ smb_realm }} | sudo debconf-set-selections"
+  when:
+    - smb_dc_result.rc != 0
+
+- name: "Preseed PAM Configuration"
+  raw: "echo libpam-runtime libpam-runtime/profiles multiselect unix, winbind, systemd, mkhomedir | sudo debconf-set-selections"
+  when:
+    - smb_dc_result.rc != 0
+
+- name: "Install dependencies"
+  apt:
+    name: "{{ packages }}"
+    update_cache: yes
+    state: present
+  vars:
+    packages:
+      - acl
+      - samba
+      - smbclient
+      - krb5-config
+      - krb5-user
+      - winbind
+      - libpam-winbind
+      - libnss-winbind
+
+- name: "Disable conflicting services"
+  ansible.builtin.systemd_service:
+    enabled: no
+    state: stopped
+    masked: yes
+    name: "{{ item }}"
+  loop:
+    - samba-ad-dc.service
+    - smbd.service
+    - nmbd.service
+    - winbind.service
+    - systemd-resolved
+  when:
+    - smb_dc_result.rc != 0
+
+- name: "Back up /etc/samba/smb.conf to /etc/samba/smb.conf.initial"
+  copy:
+    src: /etc/samba/smb.conf
+    dest: /etc/samba/smb.conf.initial
+    remote_src: yes
+    force: no
+  when:
+    - smb_dc_result.rc != 0
+
+- name: "Remove /etc/samba/smb.conf"
+  file:
+    path: /etc/samba/smb.conf
+    state: absent
+  when:
+    - smb_dc_result.rc != 0
+
+- name: "Provision domain"
+  raw: >
+    samba-tool domain provision
+    --server-role=dc
+    --use-rfc2307
+    --dns-backend=SAMBA_INTERNAL
+    --realm={{ smb_realm }}
+    --domain={{ smb_workgroup }}
+    --adminpass={{ smb_password }}
+  when:
+    - smb_dc_result.rc != 0
+
+- name: "Configure DNS forwarder"
+  replace:
+    path: /etc/samba/smb.conf
+    regexp: '127.0.0.53'
+    replace: '{{ def_ad_dns_forwarder }}'
+    backup: yes
+  notify: restart_samba
+
+- name: "Back up /etc/krb5.conf to /etc/krb5.conf.initial"
+  copy:
+    src: /etc/krb5.conf
+    dest: /etc/krb5.conf.initial
+    remote_src: yes
+    force: no
+
+- name: "Symlink Kerberos config"
+  file:
+    src: /var/lib/samba/private/krb5.conf
+    dest: /etc/krb5.conf
+    state: link
+    force: yes
+  notify: restart_samba
+
+- name: "Enable and start Samba AD-DC"
+  ansible.builtin.systemd_service:
+    masked: no
+    enabled: yes
+    state: started
+    name: samba-ad-dc.service
+
+- name: "Deploy TLS certificates"
+  copy:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    mode: "0600"
+  loop:
+    - { src: "{{ tls_cert }}", dest: "/var/lib/samba/private/server.crt" }
+    - { src: "{{ tls_key }}", dest: "/var/lib/samba/private/server.key" }
+    - { src: "{{ tls_ca_cert }}", dest: "/var/lib/samba/private/ca.pem" }
+
+- name: "Harden Samba configuration"
+  blockinfile:
+    path: /etc/samba/smb.conf
+    insertafter: '\[global\]'
+    block: |
+      tls enabled  = yes
+      tls keyfile  = /var/lib/samba/private/server.key
+      tls certfile = /var/lib/samba/private/server.crt
+      tls cafile   = /var/lib/samba/private/ca.pem
+
+      # Hardening of SMB protocol
+      min protocol = SMB2
+      smb encrypt = required
+      server signing = mandatory
+      ntlm auth = no
+
+      # Hardening of LDAP protocol
+      client ldap sasl wrapping = sign
+      ldap server require strong auth = yes
+
+      # Hardening of Kerberos protocol
+      interfaces = lo eth0
+      bind interfaces only = yes
+
+      # Logging
+      log file = /var/log/samba/%m.log
+      max log size = 1000
+      log level = 2
+  notify: restart_samba
+
+- name: "Edit fstab to enable ACL"
+  replace:
+    path: /etc/fstab
+    regexp: 'errors=remount-ro 0'
+    replace: 'user_xattr,acl,barrier=1,errors=remount-ro,relatime 0'
+    backup: yes
+
+- name: "Allow Samba traffic"
+  ufw:
+    rule: allow
+    name: Samba
+
+- name: "Allow DNS traffic on TCP/UDP port 53"
+  ufw:
+    rule: allow
+    port: "53"
+    proto: "{{ item }}"
+  loop:
+    - tcp
+    - udp
+
+- name: Make flag directory
+  ansible.builtin.file:
+    path: /etc/ansible/flags
+    state: directory
+    mode: 0775
+    recurse: yes
+
+- name: "Create installed flag"
+  file:
+    path: /etc/ansible/flags/ansible_samba_dc_installed
+    state: touch
+    mode: '0644'
