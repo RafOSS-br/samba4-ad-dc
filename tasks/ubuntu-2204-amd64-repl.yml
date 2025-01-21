@@ -83,7 +83,7 @@
   loop:
     - { src: "tls/server.crt", dest: "/var/lib/samba/private/server.crt" }
     - { src: "tls/server.key", dest: "/var/lib/samba/private/server.key" }
-    - { src: "tls/ca.pem", dest: "/var/lib/samba/private/ca.pem" }
+    - { src: "tls/ca.crt", dest: "/var/lib/samba/private/ca.crt" }
 
 - name: "Back up /etc/resolv.conf to /etc/samba/resolv.conf.initial"
   copy:
