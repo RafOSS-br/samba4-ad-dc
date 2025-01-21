@@ -84,12 +84,11 @@
 - name: "Configure NetBIOS Name in smb.conf"
   lineinfile:
     path: /etc/samba/smb.conf
-    regexp: '^#?netbios name'
-    line: 'netbios name = {{ smb_netbios_name }}'
+    regexp: '^#?\s*netbios name'
+    line: '        netbios name = {{ smb_netbios_name }}'
     state: present
   notify:
     - restart_samba
-
 
 - name: "Configure DNS forwarder"
   replace:
@@ -135,26 +134,31 @@
   blockinfile:
     path: /etc/samba/smb.conf
     insertafter: '\[global\]'
-    block: |
-      tls enabled  = yes
-      tls keyfile  = /var/lib/samba/private/server.key
-      tls certfile = /var/lib/samba/private/server.crt
-      tls cafile   = /var/lib/samba/private/ca.pem
-  
-      min protocol = SMB2
-      smb encrypt = required
-      server signing = mandatory
-      ntlm auth = no
+    block: |  
+      #        TLS configuration 
+               tls enabled  = yes
+               tls keyfile  = /var/lib/samba/private/server.key
+               tls certfile = /var/lib/samba/private/server.crt
+               tls cafile   = /var/lib/samba/private/ca.pem
 
-      client ldap sasl wrapping = sign
-      ldap server require strong auth = yes
+      #        Hardening of SMB protocol
+               min protocol = SMB2
+               smb encrypt = required
+               server signing = mandatory
+               ntlm auth = no
 
-      interfaces = lo eth0
-      bind interfaces only = yes
+      #        Hardening of LDAP protocol
+               client ldap sasl wrapping = sign
+               ldap server require strong auth = yes
 
-      log file = /var/log/samba/%m.log
-      max log size = 1000
-      log level = 2
+      #        Hardening of Kerberos protocol
+               interfaces = lo eth0
+               bind interfaces only = yes
+
+      #        Logging
+               log file = /var/log/samba/%m.log
+               max log size = 1000
+               log level = 2
   notify: restart_samba
 
 - name: "Allow Samba traffic"

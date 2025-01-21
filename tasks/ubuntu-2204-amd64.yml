@@ -101,8 +101,8 @@
 - name: "Configure NetBIOS Name in smb.conf"
   lineinfile:
     path: /etc/samba/smb.conf
-    regexp: '^#?netbios name'
-    line: 'netbios name = {{ smb_netbios_name }}'
+    regexp: '^#?\s*netbios name'
+    line: '        netbios name = {{ smb_netbios_name }}'
     state: present
   notify:
     - restart_samba
@@ -151,30 +151,31 @@
   blockinfile:
     path: /etc/samba/smb.conf
     insertafter: '\[global\]'
-    block: |
-      tls enabled  = yes
-      tls keyfile  = /var/lib/samba/private/server.key
-      tls certfile = /var/lib/samba/private/server.crt
-      tls cafile   = /var/lib/samba/private/ca.pem
+    block: |  
+      #        TLS configuration 
+               tls enabled  = yes
+               tls keyfile  = /var/lib/samba/private/server.key
+               tls certfile = /var/lib/samba/private/server.crt
+               tls cafile   = /var/lib/samba/private/ca.pem
 
-      # Hardening of SMB protocol
-      min protocol = SMB2
-      smb encrypt = required
-      server signing = mandatory
-      ntlm auth = no
+      #        Hardening of SMB protocol
+               min protocol = SMB2
+               smb encrypt = required
+               server signing = mandatory
+               ntlm auth = no
 
-      # Hardening of LDAP protocol
-      client ldap sasl wrapping = sign
-      ldap server require strong auth = yes
+      #        Hardening of LDAP protocol
+               client ldap sasl wrapping = sign
+               ldap server require strong auth = yes
 
-      # Hardening of Kerberos protocol
-      interfaces = lo eth0
-      bind interfaces only = yes
+      #        Hardening of Kerberos protocol
+               interfaces = lo eth0
+               bind interfaces only = yes
 
-      # Logging
-      log file = /var/log/samba/%m.log
-      max log size = 1000
-      log level = 2
+      #        Logging
+               log file = /var/log/samba/%m.log
+               max log size = 1000
+               log level = 2
   notify: restart_samba
 
 - name: "Edit fstab to enable ACL"
