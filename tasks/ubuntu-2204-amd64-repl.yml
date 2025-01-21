@@ -79,6 +79,7 @@
     src: "{{ item.src }}"
     dest: "{{ item.dest }}"
     mode: "0600"
+    remote_src: false
   loop:
     - { src: "tls/server.crt", dest: "/var/lib/samba/private/server.crt" }
     - { src: "tls/server.key", dest: "/var/lib/samba/private/server.key" }

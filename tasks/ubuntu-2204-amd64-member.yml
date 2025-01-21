@@ -35,6 +35,7 @@
     src: "{{ tls_ca_cert }}"
     dest: /usr/local/share/ca-certificates/{{ tls_ca_cert | basename }}
     mode: '0644'
+    remote_src: false
 
 - name: "Update ca-certificates"
   command: update-ca-certificates
