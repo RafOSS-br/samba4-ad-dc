@@ -102,7 +102,7 @@
     samba-tool domain join
     {{ smb_realm }}
     DC
-    -U "{{ smb_admin_user }}%{{ smb_admin_password }}"
+    -U "{{ smb_username }}%{{ smb_password }}"
     --dns-backend=SAMBA_INTERNAL
     --option="idmap_ldb:use rfc2307 = yes"
   when:
