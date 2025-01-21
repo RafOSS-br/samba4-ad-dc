@@ -1,12 +1,36 @@
 # Global parameters
 [global]
         dns forwarder = {{ smb_dns_forwarder }}
-        netbios name = {{ ansible_hostname }}
+        netbios name = {{ smb_netbios_name }}
         realm = {{ smb_realm }}
         server role = active directory domain controller
         workgroup = {{ smb_workgroup }}
         idmap_ldb:use rfc2307 = yes
 
+#       TLS configuration 
+        tls enabled  = yes
+        tls keyfile  = /var/lib/samba/private/server.key
+        tls certfile = /var/lib/samba/private/server.crt
+        tls cafile   = /var/lib/samba/private/ca.pem
+
+#       Hardening of SMB protocol
+        min protocol = SMB2
+        smb encrypt = required
+        server signing = mandatory
+        ntlm auth = no
+
+#       Hardening of LDAP protocol
+        client ldap sasl wrapping = sign
+        ldap server require strong auth = yes
+
+#       Hardening of Kerberos protocol
+        interfaces = lo eth0
+        bind interfaces only = yes
+
+#       Logging
+        log file = /var/log/samba/%m.log
+        max log size = 1000
+        log level = 2
 [netlogon]
         path = /var/lib/samba/sysvol/{{ smb_realm }}/scripts
         read only = No

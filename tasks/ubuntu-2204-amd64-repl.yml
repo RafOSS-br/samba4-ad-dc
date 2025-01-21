@@ -69,6 +69,21 @@
   when:
     - smb_dc_result.rc != 0
 
+- name: "Transfer adc/smb.conf.j2 to /etc/samba/smb.conf"
+  template:
+    src: adc/smb.conf.j2
+    dest: /etc/samba/smb.conf
+
+- name: "Deploy TLS certificates"
+  copy:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    mode: "0600"
+  loop:
+    - { src: "tls/server.crt", dest: "/var/lib/samba/private/server.crt" }
+    - { src: "tls/server.key", dest: "/var/lib/samba/private/server.key" }
+    - { src: "tls/ca.pem", dest: "/var/lib/samba/private/ca.pem" }
+
 - name: "Join domain as replica DC"
   raw: >
     samba-tool domain join
@@ -80,15 +95,6 @@
   when:
     - smb_dc_result.rc != 0
   notify: restart_samba
-
-- name: "Configure NetBIOS Name in smb.conf"
-  lineinfile:
-    path: /etc/samba/smb.conf
-    regexp: '^#?\s*netbios name'
-    line: '        netbios name = {{ smb_netbios_name }}'
-    state: present
-  notify:
-    - restart_samba
 
 - name: "Configure DNS forwarder"
   replace:
@@ -119,47 +125,6 @@
     enabled: yes
     state: started
     name: samba-ad-dc.service
-
-- name: "Deploy TLS certificates"
-  copy:
-    src: "{{ item.src }}"
-    dest: "{{ item.dest }}"
-    mode: "0600"
-  loop:
-    - { src: "tls/server.crt", dest: "/var/lib/samba/private/server.crt" }
-    - { src: "tls/server.key", dest: "/var/lib/samba/private/server.key" }
-    - { src: "tls/ca.pem", dest: "/var/lib/samba/private/ca.pem" }
-
-- name: "Harden Samba configuration"
-  blockinfile:
-    path: /etc/samba/smb.conf
-    insertafter: '\[global\]'
-    block: |  
-      #        TLS configuration 
-               tls enabled  = yes
-               tls keyfile  = /var/lib/samba/private/server.key
-               tls certfile = /var/lib/samba/private/server.crt
-               tls cafile   = /var/lib/samba/private/ca.pem
-
-      #        Hardening of SMB protocol
-               min protocol = SMB2
-               smb encrypt = required
-               server signing = mandatory
-               ntlm auth = no
-
-      #        Hardening of LDAP protocol
-               client ldap sasl wrapping = sign
-               ldap server require strong auth = yes
-
-      #        Hardening of Kerberos protocol
-               interfaces = lo eth0
-               bind interfaces only = yes
-
-      #        Logging
-               log file = /var/log/samba/%m.log
-               max log size = 1000
-               log level = 2
-  notify: restart_samba
 
 - name: "Allow Samba traffic"
   ufw:
