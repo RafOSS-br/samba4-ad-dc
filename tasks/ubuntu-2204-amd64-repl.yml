@@ -84,6 +84,18 @@
     - { src: "tls/server.key", dest: "/var/lib/samba/private/server.key" }
     - { src: "tls/ca.pem", dest: "/var/lib/samba/private/ca.pem" }
 
+- name: "Back up /etc/resolv.conf to /etc/samba/resolv.conf.initial"
+  copy:
+    src: /etc/resolv.conf
+    dest: /etc/samba/resolv.conf.initial
+    remote_src: no
+    force: no
+
+- name: "Transfer resolv.conf.j2 to /etc/resolv.conf"
+  template:
+    src: resolv.conf.j2
+    dest: /etc/resolv.conf
+
 - name: "Join domain as replica DC"
   raw: >
     samba-tool domain join
@@ -125,18 +137,6 @@
     enabled: yes
     state: started
     name: samba-ad-dc.service
-
-- name: "Back up /etc/resolv.conf to /etc/samba/resolv.conf.initial"
-  copy:
-    src: /etc/resolv.conf
-    dest: /etc/samba/resolv.conf.initial
-    remote_src: no
-    force: no
-
-- name: "Transfer resolv.conf.j2 to /etc/resolv.conf"
-  template:
-    src: resolv.conf.j2
-    dest: /etc/resolv.conf
 
 - name: "Allow Samba traffic"
   ufw:

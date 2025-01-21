@@ -77,6 +77,18 @@
     replace: 'user_xattr,acl,barrier=1,errors=remount-ro,relatime 0'
     backup: yes
 
+- name: "Back up /etc/resolv.conf to /etc/samba/resolv.conf.initial"
+  copy:
+    src: /etc/resolv.conf
+    dest: /etc/samba/resolv.conf.initial
+    remote_src: no
+    force: no
+
+- name: "Transfer resolv.conf.j2 to /etc/resolv.conf"
+  template:
+    src: resolv.conf.j2
+    dest: /etc/resolv.conf
+
 - name: "Discover domain"
   command: realm discover "{{ ad_domain }}"
   register: realm_discovery
