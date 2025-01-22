@@ -198,30 +198,6 @@
   notify:
     - restart_ssh
 
-- name: "Enable UFW and block by default"
-  ufw:
-    state: enabled
-    policy: deny
-    logging: 'on'
-
-- name: "Allow necessary ports for Samba/AD/SSHD"
-  ufw:
-    rule: allow
-    port:
-      - 22
-      - 53
-      - 88
-      - 135
-      - 137
-      - 138
-      - 139
-      - 389
-      - 445
-      - 464
-      - 636
-      - 1024:1300/tcp
-    proto: tcp
-
 - name: Make flag directory
   ansible.builtin.file:
     path: /etc/ansible/flags
