@@ -91,12 +91,12 @@
     dest: /etc/resolv.conf
 
 - name: "Discover domain"
-  command: realm discover "{{ ad_domain }}"
+  command: realm discover "{{ smb_realm }}"
   register: realm_discovery
   changed_when: false
 
 - name: "Join the domain (SSSD)"
-  command: realm join --user="{{ domain_admin_user }}" "{{ ad_domain }}" --computer-ou="{{ ad_computer_ou_path | default('') }}" --computer-name="{{ smb_netbios_name | default(inventory_hostname_short.upper()) }}"
+  command: realm join --user="{{ domain_admin_user }}" "{{ smb_realm }}" --computer-ou="{{ ad_computer_ou_path | default('') }}" --computer-name="{{ smb_netbios_name | default(inventory_hostname_short.upper()) }}"
   args:
     stdin: "{{ domain_admin_pass }}"
   when: realm_discovery.rc == 0
@@ -116,14 +116,14 @@
       [sssd]
       services = nss, pam, ssh
       config_file_version = 2
-      domains = {{ ad_domain }}
+      domains = {{ smb_realm }}
 
-      [domain/{{ ad_domain }}]
+      [domain/{{ smb_realm }}]
       id_provider = ad
       auth_provider = ad
       access_provider = ad
       chpass_provider = ad
-      ad_domain = {{ ad_domain }}
+      ad_domain = {{ smb_realm }}
       cache_credentials = true
       override_homedir = /home/%u
       default_shell = /bin/bash
