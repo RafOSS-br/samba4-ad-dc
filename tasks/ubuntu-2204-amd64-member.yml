@@ -131,6 +131,7 @@
       access_provider = ad
       chpass_provider = ad
       ad_domain = {{ smb_realm }}
+      krb5_realm = {{ smb_realm | upper }}
       cache_credentials = true
       override_homedir = /home/%u
       default_shell = /bin/bash
