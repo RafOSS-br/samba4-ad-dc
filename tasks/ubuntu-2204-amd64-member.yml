@@ -22,7 +22,7 @@
   shell: samba-tool domain info {{ ansible_default_ipv4.address }}
   register: smb_dc_check
   changed_when: false
-  failed_when: smb_dc_check.rc != 0
+  failed_when: smb_dc_check.rc != 0 and "not found" not in smb_dc_check.stderr
 
 - name: "Install ca-certificates"
   apt:
