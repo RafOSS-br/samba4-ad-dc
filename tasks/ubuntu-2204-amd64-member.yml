@@ -96,10 +96,17 @@
   changed_when: false
 
 - name: "Join the domain (SSSD)"
-  command: realm join --user="{{ smb_username }}" "{{ smb_realm }}" --computer-ou="{{ ad_computer_ou_path | default('') }}" --computer-name="{{ smb_netbios_name | default(inventory_hostname_short.upper()) }}"
+  command: >
+    realm join --user="{{ smb_username }}"
+    "{{ smb_realm }}"
+    {% if ad_computer_ou_path is defined and ad_computer_ou_path|length > 0 %}
+    --computer-ou="{{ ad_computer_ou_path }}"
+    {% endif %}
+    --computer-name="{{ smb_netbios_name | default(inventory_hostname_short.upper()) }}"
   args:
     stdin: "{{ smb_password }}"
   when: realm_discovery.rc == 0
+
 
 - name: "Enable home creation with oddjobd"
   ansible.builtin.systemd_service:
