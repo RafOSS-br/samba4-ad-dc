@@ -96,9 +96,9 @@
   changed_when: false
 
 - name: "Join the domain (SSSD)"
-  command: realm join --user="{{ domain_admin_user }}" "{{ smb_realm }}" --computer-ou="{{ ad_computer_ou_path | default('') }}" --computer-name="{{ smb_netbios_name | default(inventory_hostname_short.upper()) }}"
+  command: realm join --user="{{ smb_username }}" "{{ smb_realm }}" --computer-ou="{{ ad_computer_ou_path | default('') }}" --computer-name="{{ smb_netbios_name | default(inventory_hostname_short.upper()) }}"
   args:
-    stdin: "{{ domain_admin_pass }}"
+    stdin: "{{ smb_password }}"
   when: realm_discovery.rc == 0
 
 - name: "Enable home creation with oddjobd"
