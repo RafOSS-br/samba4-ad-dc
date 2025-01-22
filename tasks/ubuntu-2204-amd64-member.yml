@@ -180,7 +180,7 @@
     - restart_ssh
 
 - name: "Update PAM for SSSD"
-  command: pam-auth-update --force
+  command: pam-auth-update --enable pwquality --enable unix --enable sss --enable systemd --enable capabilities --force
 
 - name: "Harden SSH - disable root login"
   lineinfile:
