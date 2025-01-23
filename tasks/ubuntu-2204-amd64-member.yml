@@ -46,7 +46,7 @@
   apt:
     name:
       - realmd
-      - adcli
+      - samba
       - samba-common-bin
       - oddjob
       - oddjob-mkhomedir
@@ -99,6 +99,7 @@
     {% if ad_computer_ou_path is defined and ad_computer_ou_path|length > 0 %}
     --computer-ou="{{ ad_computer_ou_path }}"
     {% endif %}
+    --membership-software=samba --client-software=winbind
     --computer-name="{{ smb_netbios_name | default(inventory_hostname_short.upper()) }}"
   args:
     stdin: "{{ smb_password }}"
