@@ -42,31 +42,17 @@
   args:
     creates: /etc/ssl/certs/{{ tls_ca_cert | basename }}
 
+- name: "Set hostname"
+  command: hostnamectl set-hostname "{{ smb_netbios_name | lower() }}.{{ smb_realm | lower() }}"
+
 - name: "Install dependencies for realmd, samba, and other tools"
   apt:
     name:
       - realmd
       - samba
       - samba-common-bin
-      - oddjob
-      - oddjob-mkhomedir
-      - krb5-user
-      - libpam-krb5
-      - libnss-ldapd
-      - ldap-utils
     update_cache: yes
     state: present
-
-- name: "Stop and disable Winbind and Samba AD DC if present"
-  ansible.builtin.systemd_service:
-    enabled: no
-    state: stopped
-    masked: yes
-    name: "{{ item }}"
-  loop:
-    - winbind.service
-    - samba-ad-dc.service
-  ignore_errors: true
 
 - name: "Fix /etc/fstab to support ACL and extended attributes"
   replace:
@@ -75,17 +61,11 @@
     replace: 'user_xattr,acl,barrier=1,errors=remount-ro,relatime 0'
     backup: yes
 
-- name: "Back up /etc/resolv.conf to /etc/samba/resolv.conf.initial"
-  copy:
-    src: /etc/resolv.conf
-    dest: /etc/samba/resolv.conf.initial
-    remote_src: no
-    force: no
-
 - name: "Transfer resolv.conf.j2 to /etc/resolv.conf"
   template:
     src: resolv.conf.j2
     dest: /etc/resolv.conf
+    backup: yes
 
 - name: "Discover domain"
   command: realm discover "{{ smb_realm }}"
@@ -104,12 +84,6 @@
   args:
     stdin: "{{ smb_password }}"
   when: realm_discovery.rc == 0
-
-- name: "Enable home creation with oddjobd"
-  ansible.builtin.systemd_service:
-    name: oddjobd
-    enabled: yes
-    state: started
 
 - name: "Create LDAP public key retrieval script"
   copy:
