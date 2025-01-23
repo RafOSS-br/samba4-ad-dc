@@ -4,7 +4,7 @@
 # Version: 1.0
 # File: tasks/ubuntu-2204-amd64-member.yml
 #
-# Description: Join a server to an Active Directory domain (realmd/adcli)
+# Description: Join a server to an Active Directory domain (realmd/samba)
 #              and configure SSH to retrieve public keys from AD via LDAP.
 
 - name: "Check if role was already executed"
@@ -42,7 +42,7 @@
   args:
     creates: /etc/ssl/certs/{{ tls_ca_cert | basename }}
 
-- name: "Install dependencies for realmd, adcli, and other tools"
+- name: "Install dependencies for realmd, samba, and other tools"
   apt:
     name:
       - realmd
@@ -158,6 +158,13 @@
     line: 'PasswordAuthentication no'
   notify:
     - restart_ssh
+
+# === Added Steps to Address Bug #1980246 ===
+- name: "Transfer ns-switch.conf to /etc/nsswitch.conf"
+  template:
+    src: "nsswitch.conf.j2"
+    dest: "/etc/nsswitch.conf"
+    backup: yes
 
 - name: "Make flag directory"
   ansible.builtin.file:

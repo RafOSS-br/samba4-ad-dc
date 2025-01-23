@@ -21,3 +21,10 @@
   ansible.builtin.systemd_service:
     name: sssd
     state: restarted
+
+- name: restart_nscd
+  ansible.builtin.systemd:
+    name: nscd
+    state: restarted
+  # Ensure NSCD is installed and running
+  when: ansible_facts.services['nscd'] is defined
