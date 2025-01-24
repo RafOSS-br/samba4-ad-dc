@@ -28,3 +28,10 @@
     state: restarted
   # Ensure NSCD is installed and running
   when: ansible_facts.services['nscd'] is defined
+
+- name: restart_ntp
+  ansible.builtin.systemd_service:
+    name: ntp
+    state: restarted
+  # Ensure NTP is installed and running
+  when: ansible_facts.services['ntp'] is defined
