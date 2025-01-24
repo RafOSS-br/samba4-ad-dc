@@ -18,11 +18,15 @@
   when:
     - role_flag.stat.exists
 
-- name: "Verify if host is a Domain Controller (DC)"
-  shell: samba-tool domain info "{{ ansible_default_ipv4.address }}"
-  register: smb_dc_check
+- name: "Check Samba server role"
+  shell: testparm -s | grep 'server role'
+  register: server_role
   changed_when: false
-  failed_when: smb_dc_check.rc != 0 and "not found" not in smb_dc_check.stderr
+
+- name: "Fail if server is a Domain Controller"
+  fail:
+    msg: "This host is a Domain Controller. Operation aborted."
+  when: "'active directory domain controller' in server_role.stdout"
 
 - name: "Install CA certificates"
   apt:
