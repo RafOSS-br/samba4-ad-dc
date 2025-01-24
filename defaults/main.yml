@@ -19,6 +19,8 @@
 #   smb_username       : 'administrator'                          # Set administrator account.
 #   smb_password       : 'Welkom123'                              # Set administrator password.
 #   smb_netbios_name   : 'samba4'                                 # Set netbios name.
+#   primary_ntp        : '0.nl.pool.ntp.org'                      # Set primary ntp server.
+#   secondary_ntp      : '1.nl.pool.ntp.org'                      # Set secondary ntp server.
 # Variable(s) for member role:
 #   ad_computer_ou_path: 'OU=Computers,DC=lab,DC=local'           # Set computer ou path.
 # Variable(s) for TLS(only for ubuntu 22.04):
@@ -41,3 +43,5 @@ smb_netbios_name  : '{{ def_ad_netbios_name }}'
 tls_cert          : '{{ def_tls_cert }}'
 tls_key           : '{{ def_tls_key }}'
 tls_ca_cert       : '{{ def_tls_ca_cert }}'
+primary_ntp       : '{{ def_ntp_primary }}'
+secondary_ntp     : '{{ def_ntp_secondary }}'

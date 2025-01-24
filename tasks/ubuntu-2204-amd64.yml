@@ -54,6 +54,30 @@
       - winbind
       - libpam-winbind
       - libnss-winbind
+      - chrony
+
+- name: "Configure NTP servers"
+  lineinfile:
+    path: /etc/chrony/chrony.conf
+    insertafter: '^# Use servers from the NTP Pool Project.*'
+    line: |
+      server {{ primary_ntp }} iburst
+      server {{ secondary_ntp }} iburst
+  notify:
+    - restart_ntp
+
+- name: "Ensure NTP service is enabled and running"
+  systemd:
+    name: chrony
+    enabled: true
+    state: started
+
+- name: "Restart NTP service"
+  systemd:
+    name: chrony
+    state: restarted
+  notify:
+    - restart_ntp
 
 - name: "Disable conflicting services"
   ansible.builtin.systemd_service:
