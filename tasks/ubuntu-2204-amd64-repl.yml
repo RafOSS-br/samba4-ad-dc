@@ -22,6 +22,8 @@
   shell: testparm -s | grep 'server role'
   register: server_role
   changed_when: false
+  failed_when: >
+    server_role.rc != 0 and 'not found' not in server_role.stderr
 
 - name: "Fail if server is a Domain Controller"
   fail:
