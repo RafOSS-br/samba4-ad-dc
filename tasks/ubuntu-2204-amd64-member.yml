@@ -61,6 +61,9 @@
       - chrony
       - libsasl2-modules-gssapi-mit
       - krb5-user
+      - libnss-winbind
+      - libpam-winbind
+      - winbind
     update_cache: yes
     state: present
 
