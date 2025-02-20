@@ -121,38 +121,6 @@
     stdin: "{{ smb_password }}"
   when: realm_discovery.rc == 0
 
-- name: "Create LDAP public key retrieval script"
-  copy:
-    dest: /usr/local/bin/ad_ssh_key_retriever
-    mode: '0755'
-    content: |
-      #!/usr/bin/env bash
-      # Script to query AD via LDAP (with Kerberos) for sshPublicKey attribute.
-      # This assumes the machine is joined to the domain and can use GSSAPI.
-      USERNAME="$1"
-      # Adjust the base DN and filter for your environment:
-      BASE_DN="{{ ldap_base_dn | default('DC=example,DC=com') }}"
-      /usr/bin/kinit -k -t /etc/krb5.keytab "host/$(hostname -f)" 2>/dev/null
-      /usr/bin/ldapsearch -LLL -Y GSSAPI -b "$BASE_DN" \
-        "(&(objectCategory=Person)(sAMAccountName=$USERNAME))" sshPublicKey \
-      | sed -n '/^ /{H;d};/sshPublicKey:/x;$g;s/\n *//g;s/sshPublicKey: //gp'
-
-- name: "Configure sshd_config to use LDAP retrieval script"
-  lineinfile:
-    path: /etc/ssh/sshd_config
-    regexp: '^#?AuthorizedKeysCommand '
-    line: 'AuthorizedKeysCommand /usr/local/bin/ad_ssh_key_retriever'
-  notify:
-    - restart_ssh
-
-- name: "Set user for AuthorizedKeysCommand"
-  lineinfile:
-    path: /etc/ssh/sshd_config
-    regexp: '^#?AuthorizedKeysCommandUser '
-    line: 'AuthorizedKeysCommandUser nobody'
-  notify:
-    - restart_ssh
-
 - name: "Harden SSH - disable root login"
   lineinfile:
     path: /etc/ssh/sshd_config
