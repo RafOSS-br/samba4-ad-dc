@@ -55,7 +55,10 @@
       - realmd
       - samba
       - samba-common-bin
+      - ldap-utils
       - chrony
+      - libsasl2-modules-gssapi-mit
+      - krb5-user
     update_cache: yes
     state: present
 
