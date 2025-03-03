@@ -151,7 +151,7 @@
     dest: /etc/krb5.conf
     state: link
     force: yes
-  notify: restart_samba
+  notify: restart_samba_ad_dc
 
 - name: "Enable and start Samba AD-DC"
   ansible.builtin.systemd_service:

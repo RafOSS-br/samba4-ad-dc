@@ -7,10 +7,25 @@
 #
 # Description: Creating a primary Active Directory Domain Controller.
 
-- name: "restart_samba"
+- name: "restart_samba_ad_dc"
   ansible.builtin.systemd_service:
     state: restarted
     name: samba-ad-dc.service
+
+- name: "restart_smbd"
+  ansible.builtin.systemd_service:
+    state: restarted
+    name: smbd.service
+
+- name: "restart_winbind"
+  ansible.builtin.systemd_service:
+    state: restarted
+    name: winbind.service
+
+- name: "restart_nmbd"
+  ansible.builtin.systemd_service:
+    state: restarted
+    name: nmbd.service
 
 - name: restart_ssh
   ansible.builtin.systemd_service:

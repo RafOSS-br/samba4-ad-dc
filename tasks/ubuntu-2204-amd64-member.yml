@@ -137,6 +137,16 @@
   notify:
     - restart_ssh
 
+- name: "Use default domain"
+  lineinfile:
+    path: /etc/samba/smb.conf
+    regexp: '^winbind use default domain = no'
+    line: 'winbind use default domain = yes'
+  notify:
+    - restart_winbind
+    - restart_smbd
+    - restart_nmbd
+
 # === Added Steps to Address Bug #1980246 ===
 - name: "Transfer ns-switch.conf to /etc/nsswitch.conf"
   template:

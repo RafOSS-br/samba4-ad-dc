@@ -22,7 +22,7 @@
   with_items:
     - { src: 'pam_winbind.conf.j2', dest: '/usr/share/doc/libpam-winbind/examples/pam_winbind/pam_winbind.conf' }
   notify:
-    - restart_samba
+    - restart_samba_ad_dc
 
 - name: "Modify /etc/samba/smb.conf for AD logins"
   blockinfile:
@@ -40,7 +40,7 @@
       map acl inherit = Yes
       store dos attributes = Yes
     marker: "# {mark} ANSIBLE MANAGED BLOCK"
-  notify: restart_samba
+  notify: restart_samba_ad_dc
 
 - name: "Transfer templates"
   template:
