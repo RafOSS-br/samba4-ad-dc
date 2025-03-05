@@ -1,0 +1,126 @@
+---
+# title: role-samba4-primary-ad-dc
+# Author: Rafael R. M.
+# Version: 1.0
+# File: tasks/ubuntu-2204-amd64-pre.yml
+#
+# Description: Setup before creating a primary Active Directory Domain Controller on Ubuntu 22.04
+
+- name: "Check if role was already executed"
+  stat:
+    path: /etc/ansible/flags/ansible_samba_dc_installed
+  register: role_flag
+
+- name: "Stop if role is already installed"
+  fail:
+    msg: "Role is already installed"
+  when:
+    - role_flag.stat.exists
+
+- name: "Check if OS is already DC"
+  shell: "samba-tool domain info {{ ansible_default_ipv4.address }}"
+  register: smb_dc_result
+  changed_when: false
+  failed_when: false
+
+- name: "Preseed Kerberos version 5: krb5-config/default_realm"
+  raw: "echo krb5-config krb5-config/default_realm string {{ smb_realm }} | sudo debconf-set-selections"
+  when:
+    - smb_dc_result.rc != 0
+
+- name: "Preseed Kerberos version 5: krb5-config/add_servers_realm"
+  raw: "echo krb5-config krb5-config/add_servers_realm string {{ smb_realm }} | sudo debconf-set-selections"
+  when:
+    - smb_dc_result.rc != 0
+
+- name: "Preseed PAM Configuration"
+  raw: "echo libpam-runtime libpam-runtime/profiles multiselect unix, winbind, systemd, mkhomedir | sudo debconf-set-selections"
+  when:
+    - smb_dc_result.rc != 0
+
+- name: "Install dependencies"
+  apt:
+    name: "{{ packages }}"
+    update_cache: yes
+    state: present
+  vars:
+    packages:
+      - acl
+      - samba
+      - smbclient
+      - krb5-config
+      - krb5-user
+      - winbind
+      - libpam-winbind
+      - libnss-winbind
+      - chrony
+
+- name: "Configure NTP servers"
+  lineinfile:
+    path: /etc/chrony/chrony.conf
+    insertafter: '^# Use servers from the NTP Pool Project.*'
+    line: |
+      server {{ primary_ntp }} iburst
+      server {{ secondary_ntp }} iburst
+  notify:
+    - restart_ntp
+
+- name: "Ensure NTP service is enabled and running"
+  systemd:
+    name: chrony
+    enabled: true
+    state: started
+
+- name: "Restart NTP service"
+  systemd:
+    name: chrony
+    state: restarted
+  notify:
+    - restart_ntp
+
+- name: "Disable conflicting services"
+  ansible.builtin.systemd_service:
+    enabled: no
+    state: stopped
+    masked: yes
+    name: "{{ item }}"
+  loop:
+    - samba-ad-dc.service
+    - smbd.service
+    - nmbd.service
+    - winbind.service
+    - systemd-resolved
+  when:
+    - smb_dc_result.rc != 0
+
+- name: "Back up /etc/samba/smb.conf to /etc/samba/smb.conf.initial"
+  copy:
+    src: /etc/samba/smb.conf
+    dest: /etc/samba/smb.conf.initial
+    remote_src: yes
+    force: no
+  when:
+    - smb_dc_result.rc != 0
+
+- name: "Remove /etc/samba/smb.conf"
+  file:
+    path: /etc/samba/smb.conf
+    state: absent
+  when:
+    - smb_dc_result.rc != 0
+
+- name: "Transfer adc/smb.conf.j2 to /etc/samba/smb.conf"
+  template:
+    src: adc/smb.conf.j2
+    dest: /etc/samba/smb.conf
+
+- name: "Deploy TLS certificates"
+  copy:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    mode: "0600"
+    remote_src: false
+  loop:
+    - { src: "{{ tls_cert }}", dest: "/var/lib/samba/private/server.crt" }
+    - { src: "{{ tls_key }}", dest: "/var/lib/samba/private/server.key" }
+    - { src: "{{ tls_ca_cert }}", dest: "/var/lib/samba/private/ca.crt" }

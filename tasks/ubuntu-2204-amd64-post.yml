@@ -1,0 +1,75 @@
+---
+# title: role-samba4-primary-ad-dc
+# Author: Rafael R. M.
+# Version: 1.0
+# File: tasks/ubuntu-2204-amd64-post.yml
+#
+# Description: Setup after creating a primary Active Directory Domain Controller on Ubuntu 22.04
+
+- name: "Back up /etc/krb5.conf to /etc/krb5.conf.initial"
+  copy:
+    src: /etc/krb5.conf
+    dest: /etc/krb5.conf.initial
+    remote_src: yes
+    force: no
+
+- name: "Symlink Kerberos config"
+  file:
+    src: /var/lib/samba/private/krb5.conf
+    dest: /etc/krb5.conf
+    state: link
+    force: yes
+  notify: restart_samba_ad_dc
+
+- name: "Enable and start Samba AD-DC"
+  ansible.builtin.systemd_service:
+    masked: no
+    enabled: yes
+    state: started
+    name: samba-ad-dc.service
+
+- name: "Edit fstab to enable ACL"
+  replace:
+    path: /etc/fstab
+    regexp: 'errors=remount-ro 0'
+    replace: 'user_xattr,acl,barrier=1,errors=remount-ro,relatime 0'
+    backup: yes
+
+- name: "Back up /etc/resolv.conf to /etc/samba/resolv.conf.initial"
+  copy:
+    src: /etc/resolv.conf
+    dest: /etc/samba/resolv.conf.initial
+    remote_src: no
+    force: no
+
+- name: "Transfer resolv.conf.j2 to /etc/resolv.conf"
+  template:
+    src: resolv.conf.j2
+    dest: /etc/resolv.conf
+
+- name: "Allow Samba traffic"
+  ufw:
+    rule: allow
+    name: Samba
+
+- name: "Allow DNS traffic on TCP/UDP port 53"
+  ufw:
+    rule: allow
+    port: "53"
+    proto: "{{ item }}"
+  loop:
+    - tcp
+    - udp
+
+- name: Make flag directory
+  ansible.builtin.file:
+    path: /etc/ansible/flags
+    state: directory
+    mode: 0775
+    recurse: yes
+
+- name: "Create installed flag"
+  file:
+    path: /etc/ansible/flags/ansible_samba_dc_installed
+    state: touch
+    mode: '0644'
