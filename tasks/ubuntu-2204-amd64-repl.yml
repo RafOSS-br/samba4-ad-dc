@@ -10,6 +10,11 @@
 - name: "Setup before creating a primary Active Directory Domain Controller on Ubuntu 22.04"
   import_tasks: ubuntu-2204-amd64-pre.yml
 
+- name: "Transfer resolv.conf.j2 to /etc/resolv.conf"
+  template:
+    src: resolv.conf.j2
+    dest: /etc/resolv.conf
+
 - name: "Join domain as replica DC"
   raw: >
     samba-tool domain join

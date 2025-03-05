@@ -42,11 +42,6 @@
     remote_src: no
     force: no
 
-- name: "Transfer resolv.conf.j2 to /etc/resolv.conf"
-  template:
-    src: resolv.conf.j2
-    dest: /etc/resolv.conf
-
 - name: "Allow Samba traffic"
   ufw:
     rule: allow

@@ -22,5 +22,10 @@
   when:
     - smb_dc_result.rc != 0
 
+- name: "Transfer resolv.conf.j2 to /etc/resolv.conf"
+  template:
+    src: resolv.conf.j2
+    dest: /etc/resolv.conf
+
 - name: "Setup after creating a primary Active Directory Domain Controller on Ubuntu 22.04"
   import_tasks: ubuntu-2204-amd64-post.yml
